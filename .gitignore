@@ -1,0 +1,30 @@
+# raw acquisition
+*.raw
+
+# images
+*.png
+*.jpg
+*.tiff
+
+# results
+*.csv
+
+# temp files
+*~
+.~lock*
+
+# python
+__pycache__/
+*.pyc
+
+# output folders
+output/
+data/
+
+# large test frames
+test_*.raw
+single_frame.raw
+
+
+output/
+
