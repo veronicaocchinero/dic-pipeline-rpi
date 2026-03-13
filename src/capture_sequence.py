@@ -5,7 +5,7 @@ Acquisizione RAW ultra-veloce per DIC dinamico.
 
 • Nessun sleep
 • Nessuna conversione TIFF
-• Salvataggio RAW puro
+• Salvataggio RAW8 puro
 • Salvataggio timestamp hardware
 """
 
@@ -15,9 +15,6 @@ from pathlib import Path
 
 from src.config import (
     DEFAULT_NUM_FRAMES,
-    CAMERA_RESOLUTION,
-    EXPOSURE_TIME_US,
-    ANALOG_GAIN,
 )
 
 from src.storage import (
@@ -36,7 +33,7 @@ from src.camera_module import (
 
 def capture_sequence(num_frames: int = DEFAULT_NUM_FRAMES):
 
-    print("\n=== ACQUISIZIONE RAW MAX FPS (DIC MODE) ===")
+    print("\n=== ACQUISIZIONE RAW8 MAX FPS (DIC MODE) ===")
 
     # 1️⃣ Crea cartella sequenza
     seq_dir = create_new_sequence_folder()
@@ -44,7 +41,7 @@ def capture_sequence(num_frames: int = DEFAULT_NUM_FRAMES):
     # 2️⃣ Inizializza camera
     cam = create_camera()
 
-    # 3️⃣ File CSV per timestamp
+    # 3️⃣ CSV timestamp
     timestamp_file = seq_dir / "timestamps.csv"
 
     with open(timestamp_file, "w", newline="") as csvfile:
@@ -56,23 +53,28 @@ def capture_sequence(num_frames: int = DEFAULT_NUM_FRAMES):
 
         for i in range(num_frames):
 
-            # 🔴 Cattura richiesta
             request = cam.capture_request()
 
             metadata = request.get_metadata()
+
             raw = request.make_array("raw")
+
             request.release()
 
-            # 🔴 Estrai metadata
+            # metadata
             sensor_ts = metadata.get("SensorTimestamp")
             exposure = metadata.get("ExposureTime")
             gain = metadata.get("AnalogueGain")
 
-            # 🔴 Salvataggio RAW binario
+            # filepath
             filepath = get_frame_filename(seq_dir, i, "raw")
-            raw.astype("uint16").tofile(filepath)
 
-            # 🔴 Salva timestamp
+            # 🔴 RAW8 diretto
+            with open(filepath, "wb") as f:
+                f.write(raw)
+            
+
+            # timestamp
             writer.writerow([i, sensor_ts, exposure, gain])
 
             print(
@@ -93,7 +95,7 @@ def capture_sequence(num_frames: int = DEFAULT_NUM_FRAMES):
     cam.close()
 
     print("[seq] Camera chiusa correttamente.")
-
+    print(raw.dtype)
 
 # ============================================================
 # ENTRYPOINT

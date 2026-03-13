@@ -1,14 +1,14 @@
 """
 camera_module.py
 ----------------
-Versione ultra-veloce per acquisizione RAW pura.
+Acquisizione RAW8 pura.
 
 Pipeline:
-RAW12 → salvataggio binario diretto (.raw)
+sensore → RAW8 → file .raw
 
-Nessuna conversione TIFF.
-Nessuna elaborazione live.
-Massima velocità di scrittura.
+Nessuna ISP
+Nessun main stream
+Nessuna conversione
 """
 
 from picamera2 import Picamera2
@@ -23,37 +23,42 @@ from src.config import (
 )
 
 # ============================================================
-# 1️⃣ Inizializzazione camera (VIDEO mode per max FPS)
+# 1️⃣ Inizializzazione camera
 # ============================================================
 
 def create_camera():
 
     cam = Picamera2()
 
-    # 🔴 Usare VIDEO configuration per massima velocità
-    config = cam.create_video_configuration(
-        main={"size": (640, 480), "format": "RGB888"},
-        raw={"size": CAMERA_RESOLUTION},
-        buffer_count=6
+    # 🔴 SOLO STREAM RAW (come nello script che funzionava)
+    config = cam.create_still_configuration(
+
+        raw={
+            "size": CAMERA_RESOLUTION,
+            "format": "SBGGR8"   # RAW8 sensore
+        },
+
+        buffer_count=8
     )
 
     cam.configure(config)
     cam.start()
 
-    # 🔴 Disabilita automatismi
     cam.set_controls({
+
         "AeEnable": False,
         "AwbEnable": False,
+
         "ExposureTime": EXPOSURE_TIME_US,
-        "AnalogueGain": ANALOG_GAIN,
-        "FrameDurationLimits": (1000, 300000)
+        "AnalogueGain": ANALOG_GAIN
+
     })
 
-    time.sleep(0.5)
+    time.sleep(1)
 
     metadata = cam.capture_metadata()
 
-    print("\n[camera] RAW ULTRA-FAST MODE")
+    print("\n[camera] RAW8 PURE MODE")
     print("[camera] Config Exposure:", EXPOSURE_TIME_US)
     print("[camera] Config Gain:", ANALOG_GAIN)
     print("[camera] REAL Exposure:", metadata.get("ExposureTime"))
@@ -64,28 +69,31 @@ def create_camera():
 
 
 # ============================================================
-# 2️⃣ Acquisizione RAW pura (NO conversione)
+# 2️⃣ Acquisizione RAW
 # ============================================================
 
 def capture_raw_fast(cam, filepath: Path):
 
     filepath.parent.mkdir(parents=True, exist_ok=True)
 
-    # 🔴 Cattura richiesta completa
     request = cam.capture_request()
 
     metadata = request.get_metadata()
+
     real_exp = metadata.get("ExposureTime")
     real_gain = metadata.get("AnalogueGain")
 
     raw = request.make_array("raw")
+
     request.release()
 
-    # 🔴 Salvataggio diretto binario (ULTRA VELOCE)
-    raw.astype(np.uint16).tofile(filepath)
+    # RAW8 → uint8
+    raw.astype(np.uint8).tofile(filepath)
 
-    # 🔴 Log minimale (senza calcoli pesanti)
     print(
         f"[frame] exp:{real_exp} gain:{real_gain:.2f} "
         f"saved:{filepath.name}"
     )
+
+    print(raw.dtype)
+    print(raw.max())

@@ -1,9 +1,10 @@
 """
 storage.py
 ----------
-Gestisce tutto ciò che riguarda il salvataggio su filesystem:
-- Cartelle per le sequenze
-- Nomi dei file frame
+Gestisce il salvataggio su filesystem:
+
+- Cartelle sequenze
+- Nomi file frame RAW
 - Metadata JSON
 """
 
@@ -17,42 +18,53 @@ from src.config import (
     FRAME_FILENAME_PREFIX,
 )
 
-
 # ============================================================================
-# 1. Trova il prossimo indice libero per le sequenze (seq_0001, seq_0002, ...)
+# 1️⃣ Trova il prossimo indice libero per le sequenze
 # ============================================================================
 
 def get_next_sequence_index() -> int:
     """
-    Analizza la cartella base delle sequenze e determina qual è il prossimo
-    numero da assegnare. Se non esistono sequenze parte da 1.
+    Analizza la cartella base e trova il prossimo indice sequenza.
+
+    Esempio:
+    seq_0001
+    seq_0002
     """
 
     base_dir = get_sequence_base_dir().resolve()
 
-    # 🔴 Se è un symlink valido, NON fare mkdir
-    
-    base_dir.mkdir(parents=True, exist_ok=True)
+    # crea cartella base se non esiste
+    if not base_dir.exists():
+        base_dir.mkdir(parents=True)
 
     indices = []
 
     for item in base_dir.iterdir():
-        if item.is_dir() and item.name.startswith(SEQUENCE_FOLDER_PREFIX):
-            num_str = item.name.replace(SEQUENCE_FOLDER_PREFIX, "")
-            if num_str.isdigit():
-                indices.append(int(num_str))
+
+        if not item.is_dir():
+            continue
+
+        if not item.name.startswith(SEQUENCE_FOLDER_PREFIX):
+            continue
+
+        num_str = item.name.replace(SEQUENCE_FOLDER_PREFIX, "")
+
+        if num_str.isdigit():
+            indices.append(int(num_str))
 
     return 1 if not indices else max(indices) + 1
 
+
 # ============================================================================
-# 2. Crea cartella per una nuova sequenza
+# 2️⃣ Crea cartella sequenza
 # ============================================================================
 
 def create_new_sequence_folder() -> Path:
     """
-    Crea una cartella di sequenza in formato:
-        seq_0001/
-        seq_0002/
+    Crea cartella sequenza:
+
+    seq_0001/
+    seq_0002/
     """
 
     base_dir = get_sequence_base_dir()
@@ -61,7 +73,6 @@ def create_new_sequence_folder() -> Path:
     folder_name = f"{SEQUENCE_FOLDER_PREFIX}{index:04d}"
     seq_path = base_dir / folder_name
 
-    # mkdir eseguito sempre una volta sola
     seq_path.mkdir(parents=True, exist_ok=False)
 
     print(f"[storage] Creata cartella sequenza: {seq_path}")
@@ -70,19 +81,25 @@ def create_new_sequence_folder() -> Path:
 
 
 # ============================================================================
-# 3. Genera nome del file frame
+# 3️⃣ Genera nome file frame
 # ============================================================================
 
-def get_frame_filename(sequence_dir: Path, frame_number: int, ext: str) -> Path:
+def get_frame_filename(sequence_dir: Path, frame_number: int, ext: str = "raw") -> Path:
     """
-    Restituisce: frame_0000.dng
+    Restituisce nome file frame.
+
+    esempio:
+    frame_0000.raw
+    frame_0001.raw
     """
+
     filename = f"{FRAME_FILENAME_PREFIX}{frame_number:04d}.{ext}"
+
     return sequence_dir / filename
 
 
 # ============================================================================
-# 4. Salva metadata JSON
+# 4️⃣ Salva metadata JSON
 # ============================================================================
 
 def save_metadata(sequence_dir: Path, metadata: dict):
@@ -99,8 +116,11 @@ def save_metadata(sequence_dir: Path, metadata: dict):
 
 
 # ============================================================================
-# 5. Timestamp leggibile ISO-8601
+# 5️⃣ Timestamp ISO-8601
 # ============================================================================
 
 def now_timestamp() -> str:
+    """
+    Timestamp leggibile per metadata.
+    """
     return datetime.now().isoformat()

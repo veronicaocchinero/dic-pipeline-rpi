@@ -6,7 +6,7 @@ RESOLUTION = (2028, 1520)
 EXPOSURE = 8000
 GAIN = 1.0
 
-OUTPUT = "raw8_linear.raw"
+OUTPUT = "prova2.raw"
 
 def main():
 
