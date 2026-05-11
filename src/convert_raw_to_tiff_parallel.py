@@ -5,37 +5,57 @@ import cv2
 import multiprocessing as mp
 import argparse
 
-WIDTH = 2028
+# ============================================================
+# CONFIGURAZIONE
+# ============================================================
+
+# 🔵 CASO 1 — ORIZZONTALE (funzionava prima)
+CAMERA_RESOLUTION = (2028, 1520)
+RAW_H = 1520
+RAW_W = 2048
 HEIGHT = 1520
+WIDTH = 2028
 
-# stride reale (pixel per riga nel buffer)
-STRIDE = 2048
+# 🔴 CASO 2 — VERTICALE (nuovo setup)
+# CAMERA_RESOLUTION = (1520, 2028)
+#RAW_H = 2160      # righe reali buffer (con padding)
+#RAW_W = 4064      # stride reale buffer
 
+#HEIGHT = 2160     # altezza immagine utile
+#WIDTH = 4056    # larghezza immagine utile
+
+# ============================================================
+# CONVERSIONE
+# ============================================================
 
 def convert_file(raw_path: Path):
 
     data = np.fromfile(raw_path, dtype=np.uint16)
 
-    img = data.reshape((HEIGHT, STRIDE))
+    # reshape con dimensioni REALI del buffer
+    img = data.reshape((RAW_H, RAW_W))
 
-    # taglia padding
+    # crop verticale (rimuove padding righe)
+    img = img[:HEIGHT, :]
+
+    # crop orizzontale (rimuove padding colonne)
     bayer16 = img[:, :WIDTH]
 
-    # shift per ottenere 8 bit
+    # conversione 8 bit (fondamentale)
     bayer8 = (bayer16 >> 8).astype(np.uint8)
 
-    # debayer per preview
-    #rgb = cv2.cvtColor(bayer8, cv2.COLOR_BAYER_BG2RGB)
-    #gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
-
+    # preview opzionale
+    # rgb = cv2.cvtColor(bayer8, cv2.COLOR_BAYER_BG2RGB)
+    # gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
 
     tiff_path = raw_path.with_suffix(".tiff")
- 
     tiff.imwrite(tiff_path, bayer8)
-    #tiff.imwrite(tiff_path, gray)
 
     return raw_path.name
 
+# ============================================================
+# MULTIPROCESS
+# ============================================================
 
 def convert_folder(folder: Path, workers: int):
 
@@ -49,13 +69,15 @@ def convert_folder(folder: Path, workers: int):
 
             print("converted:", name)
 
+# ============================================================
+# MAIN
+# ============================================================
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
     parser.add_argument("folder", type=str)
-
     parser.add_argument("--workers", type=int, default=mp.cpu_count())
 
     args = parser.parse_args()

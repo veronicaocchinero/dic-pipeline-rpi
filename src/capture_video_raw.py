@@ -49,7 +49,13 @@ def main():
 
     start = time.perf_counter()
 
+
+
     for i in range(NUM_FRAMES):
+        
+        if i == 0:
+        print("raw shape:", raw.shape)
+        print("raw dtype:", raw.dtype)
 
         request = cam.capture_request()
 

@@ -9,7 +9,7 @@ def preview_live():
     picam2 = Picamera2()
 
     config = picam2.create_still_configuration(
-        main={"size": (1280, 720), "format": "RGB888"},
+        main={"size":CAMERA_RESOLUTION, "format": "RGB888"},
         raw={"size": CAMERA_RESOLUTION},
         buffer_count=4
     )

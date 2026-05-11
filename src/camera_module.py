@@ -64,7 +64,8 @@ def create_camera():
     print("[camera] REAL Exposure:", metadata.get("ExposureTime"))
     print("[camera] REAL Gain:", metadata.get("AnalogueGain"))
     print()
-
+    print(cam.camera_configuration())
+    
     return cam
 
 
