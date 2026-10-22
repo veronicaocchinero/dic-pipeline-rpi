@@ -29,3 +29,13 @@ single_frame.raw
 output/
 
 dice/
+*.raw
+*.tif
+*.tiff
+*.jpg
+*.jpeg
+*.mp4
+*.zip
+*.pptx
+*.e
+__pycache__/

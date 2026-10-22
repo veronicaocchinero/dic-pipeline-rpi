@@ -8,12 +8,14 @@ Acquisizione RAW ultra-veloce per DIC dinamico.
 • Nessuna conversione TIFF
 • Salvataggio RAW8 puro
 • Salvataggio timestamp hardware
+• Salvataggio log temperatura CPU/GPU per ogni frame
 """
 
 import time
 import csv
 import sys
 import threading
+import subprocess
 from pathlib import Path
 
 from src.config import (
@@ -60,6 +62,38 @@ def _stop_listener(stop_flag: dict):
 
 
 # ============================================================
+# LOG TEMPERATURA RASPBERRY
+# ============================================================
+
+def read_cpu_temp_C():
+    """
+    Legge la temperatura CPU/SoC dal file di sistema del Raspberry.
+    Ritorna float in °C oppure None se non disponibile.
+    """
+    try:
+        with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+            return float(f.read().strip()) / 1000.0
+    except Exception:
+        return None
+
+
+def read_gpu_temp_C():
+    """
+    Legge la temperatura GPU/SoC usando vcgencmd.
+    Ritorna float in °C oppure None se non disponibile.
+    """
+    try:
+        out = subprocess.check_output(
+            ["vcgencmd", "measure_temp"],
+            text=True
+        )
+        # formato tipico: temp=47.2'C
+        return float(out.split("=")[1].split("'")[0])
+    except Exception:
+        return None
+
+
+# ============================================================
 # FUNZIONE PRINCIPALE
 # ============================================================
 
@@ -84,8 +118,9 @@ def capture_sequence(max_frames: int | None = None):
     # 2) Inizializza camera
     cam = create_camera()
 
-    # 3) CSV timestamp
+    # 3) CSV timestamp + temperatura
     timestamp_file = seq_dir / "timestamps.csv"
+    temperature_file = seq_dir / "temperature_log.csv"
 
     # 4) Aspetta START dall'utente
     _wait_for_enter(">>> Premi INVIO per AVVIARE l'acquisizione...")
@@ -104,10 +139,14 @@ def capture_sequence(max_frames: int | None = None):
     i = 0
     raw = None  # per il print finale del dtype
 
-    with open(timestamp_file, "w", newline="") as csvfile:
+    with open(timestamp_file, "w", newline="") as csvfile, \
+         open(temperature_file, "w", newline="") as temp_csvfile:
 
         writer = csv.writer(csvfile)
+        temp_writer = csv.writer(temp_csvfile)
+
         writer.writerow(["frame", "sensor_timestamp_ns", "exposure_us", "gain"])
+        temp_writer.writerow(["frame_id", "timestamp_unix", "cpu_temp_C", "gpu_temp_C"])
 
         start_time = time.perf_counter()
 
@@ -122,11 +161,18 @@ def capture_sequence(max_frames: int | None = None):
 
             metadata = request.get_metadata()
 
+            # timestamp reale del sistema, utile per sincronizzazione con macchina di prova
+            timestamp_unix = time.time()
+
+            # temperature Raspberry
+            cpu_temp = read_cpu_temp_C()
+            gpu_temp = read_gpu_temp_C()
+
             raw = request.make_array("raw")
 
             request.release()
 
-            # metadata
+            # metadata camera
             sensor_ts = metadata.get("SensorTimestamp")
             exposure = metadata.get("ExposureTime")
             gain = metadata.get("AnalogueGain")
@@ -138,14 +184,21 @@ def capture_sequence(max_frames: int | None = None):
             with open(filepath, "wb") as f:
                 f.write(raw)
 
-            # timestamp
+            # timestamp camera
             writer.writerow([i, sensor_ts, exposure, gain])
 
-            print(
+            # log temperatura
+            temp_writer.writerow([i, timestamp_unix, cpu_temp, gpu_temp])
+
+          
+            if i % 20 == 0:
+             print(
                 f"[frame {i:04d}] "
                 f"exp:{exposure} "
-                f"gain:{gain:.2f}"
-            )
+                f"gain:{gain:.2f} "
+                f"cpu:{cpu_temp}°C "
+                f"gpu:{gpu_temp}°C"
+                )
 
             i += 1
 
@@ -158,6 +211,8 @@ def capture_sequence(max_frames: int | None = None):
     print(f"Durata totale: {total_time:.3f} s")
     print(f"FPS reali medi: {fps_real:.2f}")
     print(f"Cartella: {seq_dir}")
+    print(f"Timestamp CSV: {timestamp_file}")
+    print(f"Temperature CSV: {temperature_file}")
 
     cam.stop()
     cam.close()
@@ -172,7 +227,7 @@ def capture_sequence(max_frames: int | None = None):
 # ============================================================
 
 if __name__ == "__main__":
-    # Esempio: nessun limite -> acquisisci finché non premi stop
+    # Nessun limite -> acquisisci finché non premi stop
     capture_sequence()
 
     # In alternativa, con limite di sicurezza:

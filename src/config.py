@@ -39,12 +39,12 @@ IMAGE_FORMAT = "raw"
 # 8000 = luce forte
 # 15000 = luce media
 # 30000 = luce bassa
-EXPOSURE_TIME_US = 15000
+EXPOSURE_TIME_US = 3750
 
 # Guadagno analogico
 # 1.0 = base
 # 2.0 = più luminoso ma più rumore
-ANALOG_GAIN = 1.0
+ANALOG_GAIN = 4.0
 
 
 # ============================================================
